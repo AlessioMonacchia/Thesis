@@ -4,31 +4,31 @@
 
 #Library----
 
-library(terra)
+library(terra) # methods for spatial data analysis with vector (points, lines, polygons) and raster (grid) data. Methods for vector data include geometric operations such as intersect and buffer. Raster methods include local, focal, global, zonal and geometric operations. The predict and interpolate methods facilitate the use of regression type (inrerpolation, machine learning) medels for spatial prediction, including with satellite remote sensing data. Manual and tutorials on <https://rspatial.org/>
 
-library(pROC)
+library(pROC) # R package to display and analyze ROC (receiving operating characteristics) curves
 
-library(caret)
+library(caret) # Classification And REgression Training is a set of functions that attempt to streamiline the process for creating predictive models. The package contains tools for: data splitting, pre-processing, feature selection, model tuning using resampling, variable importance estimation
 
-library(sf)
+library(sf) # support for simple features, a standardized way to encode spatial vector data. Binds to GDAL for reading and writing data, to GEOS for geometrical operations, and to PROJ for projection conversions and datum transformations.
 
-library(purrr)
+library(purrr) # enhances R functional programming toolkit by providing set of tools for working with functions and vectors. 
 
-library(tools)
+library(tools) # tools for package development, administration and documentation
 
-library(tidyverse)
+library(tidyverse) # set of packages that work in harmony because they share common data representations and 'API' design. This package is designed to make it easy to install and load multiple tydiverse packages in a single step.
 
-library(rsample)
+library(rsample) # classes and functions to create and summarize different types of resampling objects (e.g. bootstrap, cross-validation)
 
-library(furrr)
+library(furrr) # implementations of the family of map() functions from 'purrr' that can be resolved using any future supported backend, e.g. parallel on the local machine or distributed on a computer cluster.
 
-library(pbapply)
+library(pbapply) # package that add progress bar to vectorized R functions ('*apply'). The implementation can easily be added to functions where showing the progress is useful (e.g. bootstrap). The type and style of the progress bar (with percentages or remaining time) can be set through options. Support several parallel process backends including future.
 
-library(ranger)
+library(ranger) # a fast implementation of Random Forests, particularly suited for high dimensional data. Ensembles of classification, regression, survival and probability prediction trees are supported.
 
-library(tidymodels)
+library(tidymodels) # collection of packages for modelling and machine learning using tydiverse principles.
 
-library(e1071)
+library(e1071) # functions for latent class analysis, short time Fourier transform, fuzzy clustering, support vector machines, shortest path computation, bagged clustering, naive Bayes classifier, generalized k-nearest neighbour...
 
  
 
@@ -38,7 +38,7 @@ source("R/clean_name.R") #scorciatoia per :
 
 # clean_name <- function(file) {
 
-#   var_name <- tools::file_path_sans_ext(basename(file))
+#   var_name <- tools::file_path_sans_ext(basename(file)) # :: is an operator which helps to access a specific function from a specific package.
 
 #   var_name <- gsub("[^[:alnum:]_]", "", var_name)
 
@@ -56,7 +56,7 @@ source("R/clean_name.R") #scorciatoia per :
 
 #Load data----
 
-ortho <- list.files(pattern = "Ortho", full.names = TRUE, recursive = TRUE)%>%
+ortho <- list.files(pattern = "Ortho", full.names = TRUE, recursive = TRUE)%>% # this is a pipe operator, it takes the output of one function and passes it into another function as an argument.
 
   set_names(nm = map(., clean_name)) %>%
 
@@ -70,7 +70,7 @@ buffers <- list.files(pattern = "Buffer.*shp",
 
   set_names(nm = map(., clean_name)) %>%
 
-  map(~st_read(.))
+  map(~st_read(.))                       # map(): apply a function to each element of a vector. st_read: read simple features from file or database.
 
 # remove EL2, EY3, RA2 (2, 5, 10)
 
@@ -82,7 +82,7 @@ buffers[[2]] <- NULL
 
  
 
-ortho<-map2(ortho, map(buffers, ~ ext(.x)), ~ crop(.x, .y))
+ortho<-map2(ortho, map(buffers, ~ ext(.x)), ~ crop(.x, .y))    # ext(): get a SpatExtent of a SpatRaster, SpatVector or other spatial objects.
 
 ortho<-map2(ortho, buffers, ~ mask(.x, .y))
 
