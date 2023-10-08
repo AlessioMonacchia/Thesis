@@ -36,7 +36,7 @@ library(e1071) # functions for latent class analysis, short time Fourier transfo
 
 source("R/clean_name.R") #scorciatoia per :
 
-# clean_name <- function(file) {
+# clean_name <- function(file) {                          # NON CAPITA
 
 #   var_name <- tools::file_path_sans_ext(basename(file)) # :: is an operator which helps to access a specific function from a specific package.
 
@@ -58,17 +58,17 @@ source("R/clean_name.R") #scorciatoia per :
 
 ortho <- list.files(pattern = "Ortho", full.names = TRUE, recursive = TRUE)%>% # this is a pipe operator, it takes the output of one function and passes it into another function as an argument.
 
-  set_names(nm = map(., clean_name)) %>%
+  set_names(nm = map(., clean_name)) %>%  # nm = a character vector of names to assign to the object.
 
   map(~rast(.))
 
  
 
-buffers <- list.files(pattern = "Buffer.*shp",
+buffers <- list.files(pattern = "Buffer.*shp",                       # list.files = it produces a character vector of the names of files or directories in the named directory
 
                       full.names = TRUE, recursive = TRUE)%>%
 
-  set_names(nm = map(., clean_name)) %>%
+  set_names(nm = map(., clean_name)) %>%    # il . fa forse riferimento alla pipe?
 
   map(~st_read(.))                       # map(): apply a function to each element of a vector. st_read: read simple features from file or database.
 
@@ -84,7 +84,7 @@ buffers[[2]] <- NULL
 
 ortho<-map2(ortho, map(buffers, ~ ext(.x)), ~ crop(.x, .y))    # ext(): get a SpatExtent of a SpatRaster, SpatVector or other spatial objects.
 
-ortho<-map2(ortho, buffers, ~ mask(.x, .y))
+ortho<-map2(ortho, buffers, ~ mask(.x, .y))                    # map2: map over multiple inputs simultaneously
 
  
 
@@ -94,9 +94,9 @@ ortho<-map2(ortho, buffers, ~ mask(.x, .y))
 
  
 
-outside_na <- map2(ortho, buffers, function(ortho, buffer) {
+outside_na <- map2(ortho, buffers, function(ortho, buffer) {    
 
-  # Converti il buffer in SpatVector
+  # Converti il buffer in SpatVector, is used as a spatial filter to select geometries to read.
 
   buffer <- terra::vect(buffer)
 
@@ -148,23 +148,23 @@ fiori<- list.files(pattern = "fiori.*shp", full.names = TRUE, recursive = TRUE)%
 
   map(~st_read(.))%>%
 
-  map(~.[!st_is_empty(.), ])
+  map(~.[!st_is_empty(.), ])           # st_is_empty return for each geometry whether it is empty. ! is the logical operator for negation: !(5>1) return FALSE while "!(1>5)" returns TRUE
 
  
 
 erba<-list.files(pattern = "erba.*shp", full.names = TRUE, recursive = TRUE)%>%
 
-  set_names(nm = map(., clean_name)) %>%
+  set_names(nm = map(., clean_name)) %>%   # list.files produces a character vector of the names of files or directories in the named directory
 
-  map(~st_read(.))%>%
+  map(~st_read(.))%>%                      # read simple features from file or database, or retrieve layer names and their geometry type(s)
 
-  map(~.[!st_is_empty(.), ])
+  map(~.[!st_is_empty(.), ]) 
 
  
 
 #Ordiniamo i nomi in modo che coincidano
 
-names(ortho) <- sort(names(ortho))
+names(ortho) <- sort(names(ortho))        # order a vector or factor into ascending or descending order.
 
 names(fiori) <- sort(names(fiori))
 
@@ -174,7 +174,7 @@ names(erba) <- sort(names(erba))
 
 #Values extraction----
 
-df_fiori <- map2(ortho, fiori, ~terra::extract(.x, .y))
+df_fiori <- map2(ortho, fiori, ~terra::extract(.x, .y))     # extract a character column into multiple columns using regular regression groups
 
 df_erba <- map2(ortho, erba, ~terra::extract(.x, .y))
 
@@ -186,7 +186,7 @@ df_erba <- map2(ortho, erba, ~terra::extract(.x, .y))
 
 df_fiori <- map(df_fiori, ~{
 
-  colnames(.) <- c("ID_poly", paste0("banda_", 1:(ncol(.)-1)))
+  colnames(.) <- c("ID_poly", paste0("banda_", 1:(ncol(.)-1)))      # sceglie nomi per ciascuna colonna del dataframe
 
   .
 
