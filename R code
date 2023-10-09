@@ -86,7 +86,8 @@ ortho<-map2(ortho, map(buffers, ~ ext(.x)), ~ crop(.x, .y))    # ext(): get a Sp
 
 ortho<-map2(ortho, buffers, ~ mask(.x, .y))                    # map2: map over multiple inputs simultaneously
 
- 
+# mask(): create a new Raster object that has the same values as 'x', except for the cells that are 'NA' in a 'mask'. These cells become 'NA'. The mask can be either another Raster object of the same extent and resolution, or a Spatial* object in which 
+case all cells are not covered by the spatial object are set to 'updatevalue'. You can use 'inverse=TRUE' to set the cells that are not 'NA' (or other 'maskvalue') in the mask, or not covered by the Spatial*object, to 'NA' (or other update value).
 
 #Vogliamo sapere se lo sfondo del nostro transetto sia composto da NA per
 
@@ -94,7 +95,7 @@ ortho<-map2(ortho, buffers, ~ mask(.x, .y))                    # map2: map over 
 
  
 
-outside_na <- map2(ortho, buffers, function(ortho, buffer) {    
+outside_na <- map2(ortho, buffers, function(ortho, buffer) {    # = apply the function that is being created to the vectors ortho and buffers
 
   # Converti il buffer in SpatVector, is used as a spatial filter to select geometries to read.
 
