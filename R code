@@ -89,7 +89,13 @@ buffers[[2]] <- NULL
 
 ortho<-map2(ortho, map(buffers, ~ ext(.x)), ~ crop(.x, .y))    # ext(): get a SpatExtent of a SpatRaster, SpatVector or other spatial objects.
 
-ortho<-map2(ortho, buffers, ~ mask(.x, .y))                    # map2: map over multiple inputs simultaneously
+
+# la seguente linea di codice esegue un'operazione di mascheramento su dati spaziali rappresentati in ortho.
+# Per ogni coppia di elementi da ortho e buffers la funzione mask() viene applicata per mascherare il dato spaziale in ortho utilizzando l'oggeto spaziale in buffers.
+# Il risulatato viene assegnato nuovamente ad ortho sovrascrivendo il dato originale con i dati mascherati.
+# Il mascheramento può essere utilizzato per escludere o isolare una determinata area di interesse nei dati spaziali.
+
+ortho<-map2(ortho, buffers, ~ mask(.x, .y))                    # map2: map over multiple inputs simultaneously. Mask x = ortho utilizzando y = buffers
 
 # mask(): create a new Raster object that has the same values as 'x', except for the cells that are 'NA' in a 'mask'. These cells become 'NA'. The mask can be either another Raster object of the same extent and resolution, or a Spatial* object in which 
 case all cells are not covered by the spatial object are set to 'updatevalue'. You can use 'inverse=TRUE' to set the cells that are not 'NA' (or other 'maskvalue') in the mask, or not covered by the Spatial*object, to 'NA' (or other update value).
@@ -179,9 +185,9 @@ names(erba) <- sort(names(erba))
  
 
 #Values extraction----
-
+# estraiamo i valori di ortho relativi ai pixels interni ai poligoni classificati come fiori
 df_fiori <- map2(ortho, fiori, ~terra::extract(.x, .y))     # extract a character column into multiple columns using regular regression groups
-
+# stesso per pixels appartenenti ai poligoni di erba
 df_erba <- map2(ortho, erba, ~terra::extract(.x, .y))
 
  
@@ -212,7 +218,7 @@ df_erba <- map(df_erba, ~{
 
  
 
-#label
+#label: aggiungiamo una colonna contenente la label per ciascun dataframe
 
 df_fiori <- map(df_fiori, ~{
 
@@ -239,7 +245,7 @@ df_erba <- map(df_erba, ~{
  
 
 # Unisci tutti i dataframe in una lista
-
+# .id ="origin" intende aggiungere una nuova colonna dove per ogni pixel sia identificata l'immagine di appartenza
 df_fiori_unified <- bind_rows(df_fiori, .id = "origin")
 
 df_erba_unified <- bind_rows(df_erba,.id = "origin")
@@ -260,9 +266,12 @@ df_erba_unified <- df_erba_unified %>%
 
   group_by(origin) %>%
 
-  sample_n(size = sample_size, replace = TRUE) %>%
+  sample_n(size = sample_size, replace = TRUE) %>%    # sample_n() (dplyr) è usata per campionare un numero specifico di righe da un dataframe. 
+# replace = TRUE signica che la funzione campionerà casualmente un numero di righe pari a sample size utilizzando la tecnica del campionamento con sostituzione
+# il che significa che le stesse righe potrebbero apparire più di una volta nel campione risultante. È utile quando si desidera effettuare campionamenti casuali ripetuti 
+# o quando si vuole consentire la possibilità di estrarre più volte le stesse righe.
 
-  ungroup()
+  ungroup()    # consente di tornare al data frame originale senza gruppi, rendendo più facile eseguire ulteriori operazioni o analisi sui dati in modo non raggruppato
 
  
 
@@ -270,7 +279,8 @@ df_erba_unified <- df_erba_unified %>%
 
 df_tot <- rbind(df_fiori_unified, df_erba_unified) %>%
 
-  rowid_to_column(.) %>%
+  rowid_to_column(.) %>%            # funzione del pacchetto dplyr che serve a convertire le righe ID in una colonna separata all'interno del dataframe.
+                                      è utile quando si desidera trasformare l'ID della riga in una variabile del dataframe, rendendola parte dei dati.
 
   rename(ID_pixel = rowid)
 
@@ -310,17 +320,18 @@ set.seed(123)
 
 df_selected <- df_tot %>%
 
-  select(banda_1,banda_2 , banda_3, label)
+  select(banda_1,banda_2 , banda_3, label)     # funzione del pacchetto dplyr utilizzata per selezionare e restituire un sottoinsieme specifico delle colonne da un dataframe.
+                                                 select(data, col1, col2, ...)
 
  
 
 # Dividi il dataframe selezionato in set di addestramento e di test
 
-data_split <- initial_split(df_selected, prop = 0.7, strata = "label")
+data_split <- initial_split(df_selected, prop = 0.7, strata = "label")   # prendiamo il 70% dei dati in df_selected per utilizzarli come set di training
 
-training_data <- training(data_split)
+training_data <- training(data_split)    # estraiamo i dati di addestramento da quel 70% del totale
 
-test_data <- testing(data_split)
+test_data <- testing(data_split)     # estraiamo i dati di test dallo stesso 70% del totale
 
  
 
@@ -334,13 +345,17 @@ test_data$label <- as.factor(test_data$label)
 
 #RF Model----
 
- 
+# la funzione expand.grid è utilizzata per creare un dataframe che rappresenta tutte le combinazioni possibili di un insieme di vettori o fattori forniti come argomenti.
+# Questo è particolarmente utile quando si desidera esplorare tutte le combinazioni di variabili in un esperimento o in una griglia di parametri per la ricerca di modelli.
+# le seguenti linee di codice creano un "tune grid" utilizzato per l'ottimizzazione dei parametri in un modello di Random Forest
+# o un modello basato su alberi. Questo tunegrid rappresenta una griglia di combinazioni dei parametri da valutare al fine di determinare quale combinazione
+# produce le migliori prestazioni per il modello. 
 
-tuneGrid <- expand.grid(.mtry = c(1, 2, 3),
+tuneGrid <- expand.grid(.mtry = c(1, 2, 3),    # .mtry rappresenta il numero di variabili casuali da selezionare per la suddivisione dei nodi durante la costruzione di alberi casuali. In questo caso consideriamo tre valori possibili: 1, 2 e 3.
 
-                        .splitrule = "hellinger",
+                        .splitrule = "hellinger",     # spitrule è un parametro che specifica la regola da utilizzare per la suddivisione dei nodi degli alberi casuali. 
 
-                        .min.node.size = c(1, 3, 5))
+                        .min.node.size = c(1, 3, 5))     # min.node.size rappresenta la dimensione minima di un nodo nell'albero. Questo parametro controlla quante osservazioni minime devono essere presenti in un nodo prima che possa essere suddiviso ulteriormente. Qui si stanno considerando 3 possibili valori: 1, 3 e 5
 
  
 
@@ -353,12 +368,19 @@ tuneGrid <- expand.grid(.mtry = c(1, 2, 3),
  
 
 # Define cross-validation strategy
+# le seguenti linee di codice configurano i parametri di controllo per l'addestramento di modelli di machine learning
+# utilizzando il pacchetto caret. In particolare, questi parametri vengono utilizzati durante il processo di cross-validation
+# per la valutazione delle prestazioni del modello.
+# La cross-validation verrà eseguita con 10 folds, le previsioni verranno salvate alla fine di ogni fold e verranno visualizzati messaggi dettagliati durante il processo di addestramento.
+# Questi parametri sono utilizzati per gestire il processo di addestramento e valutazione del modello in modo più controllato e informato.
 
-train_control <- trainControl(method = "cv", number = 10,
+train_control <- trainControl(method = "cv", number = 10,   # method specifica il metodo di cross-validation da utilizzare. CV sta per cross-validation. 
+                                                              la cv è un approccio comune per valutare le prestazioni di un modello, suddividendo il dataset in diverse parti
+                                                              e addestrando il modello su una parte e valutandolo sull'altra, ripetendo questo processo più volte.
 
-                              savePredictions = "final",
+                              savePredictions = "final",    # savePredictions è un parametro che specifica quando le previsioni dovrebbero essere salvate. Final indica che le previsioni saranno salvate alla fine del processo di cross-validation.
 
-                              verboseIter = TRUE)
+                              verboseIter = TRUE)    # parametro booleano che controlla se dovrebbero essere visualizzati messaggi di output dettagliati durante il processo di addestramento del modello.
 
  
 
