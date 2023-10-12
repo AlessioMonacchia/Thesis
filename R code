@@ -387,24 +387,30 @@ train_control <- trainControl(method = "cv", number = 10,   # method specifica i
 ## Train the model using ranger and the tuning grid
 
 # Calcola i pesi delle classi
+# il codice seguente estrae le classi uniche da un dataset di addestramento e crea un vettore di pesi per ciascuna classe, assegnando pesi specifici
+# alle classi in modo da influenzare il comportamento del modello di classificazione durante l'addestramento.
 
-classi <- unique(training_data$label)
+classi <- unique(training_data$label)  # la funzione unique() viene usata per estrarre i valori unici dalla colonna 'label' del dataframe 'training data'.
+                                       # I valori unici vengono quindi assegnati all'oggetto 'classi', creando un vettore con le etichette uniche delle classi.
 
-class_weights <- c("erba" = 0.1, "fiore" = 0.9)
+class_weights <- c("erba" = 0.1, "fiore" = 0.9)  # qui si assegnano i pesi specifici a ciascuna classe del problema di classificazione. Attribuendo un peso maggiore ad una classe,
+                                                 # il modello darà più importanza a quella classe nella fase di addestramento e ottimizzazione dei parametri.
 
  
 
 # Addestra il modello utilizzando i pesi delle classi
+# il codice addestra un modello Random Forest utilizzando il pacchetto caret e il metodo ranger.
+# train() è una funzione del pacchetto caret utilizzata per addestrare modelli di machine learning.
 
-RF <- train(label ~ ., data = training_data,
+RF <- train(label ~ ., data = training_data,     # label ~ indica che label è la variabile di risposta da prevedere e "." significa che tutte le altre variabili nel dataframe 'training data' sono utilizzate come variabili predittorie.
 
-            method = "ranger",
+            method = "ranger",                   # method indica il metodo di addestramento da utilizzare, in questo caso il random forest.
 
-            num.trees = 500,
+            num.trees = 500,                     # num.trees specifica il numero di alberi da creare nel modello RF.
 
-            trControl = train_control,
+            trControl = train_control,           # trControl specifica i parametri di controllo dell'addestramento come i dettagli della cross-validation, l'output dettagliato ecc.
 
-            tuneGrid = tuneGrid,
+            tuneGrid = tuneGrid,                 # tuneGrid è l'oggetto precedentemente creato ed utilizzato per l'ottimizzazione dei parametri del modello.
 
             class.weights = class_weights)
 
