@@ -81,6 +81,11 @@ buffers[[5]] <- NULL
 buffers[[2]] <- NULL
 
  
+# con la funzione map (purrr) applichiamo la funzione ext() a ciascun elemento del vettore buffers. La funzione ext() restituirà l'estensione spaziale di ciascun oggetto della lista buffers.
+# map2 (purrr) applica la funzione crop() ai dati dell'oggetto ortho e ai risultati ottenuti dalla prima parte.
+# La funzione crop(.x, .y) prende due argomenti: il primo argomento (ortho) è il dato che verrà ritagliato, il secondo argomento ('...') è l'estensione specificata per il ritaglio.
+# In pratica la funzione crop() sta ritagliando il dato ortho in base alle estensioni spaziali specificate nell'output della prima parte.
+# In sintesi ritagliamo i dati spaziali nell'oggetto ortho con l'estensione dell'oggetto buffers.
 
 ortho<-map2(ortho, map(buffers, ~ ext(.x)), ~ crop(.x, .y))    # ext(): get a SpatExtent of a SpatRaster, SpatVector or other spatial objects.
 
