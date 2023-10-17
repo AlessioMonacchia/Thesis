@@ -443,6 +443,10 @@ print(RF)
  
 
 #RF model test----
+# le seguenti linee di codice servono a valutare le prestazioni del modello di classificazione calcolando l'accuratezza,
+# il richiamo e la misura F1 basati sulle previsioni del modello e le etichette reali dei dataset di test.
+# Queste metriche forniscono una valutazione completa delle capacità del modello nel discrimare e classificare
+# correttamente le istanze nelle classi target.
 
 predizioni <- predict(RF, test_data)
 
@@ -456,11 +460,17 @@ recall <- matrice_confusione$byClass["Sensitivity"]
 
 f1 <- matrice_confusione$byClass["F1"]
 
-auc_roc<- roc(test_data$label, as.numeric(predizioni))
 
-auc <- auc(auc_roc)
+# Il seguente codice calcola alcune metriche di valutazione delle prestazioni di un modello di classificazione. 
+auc_roc<- roc(test_data$label, as.numeric(predizioni))      # calcola la curva ROC (Receiver Operating Characteristics)
+                                                            # la curva rappresenta la relazione tra la true positive rate e la false positive rate al variare del threshold di classificazione.
 
-precision <- matrice_confusione$byClass["Pos Pred Value"]
+auc <- auc(auc_roc)              # questa calcola l'Area Under the Curve (AUC) della curva ROC. L'AUC è una misura dell'efficacia del modello
+                                 # nel discriminare tra le classi positive e negative
+
+precision <- matrice_confusione$byClass["Pos Pred Value"]    # estrae il valore di precisione del risultato della matrice di confusione.
+                                                             # La precisione è la proporzione di istanze previste come positive che sono effettivamente positive.
+# AUC e precision sono metriche spesso utilizzate per valutare le prestazioni di modelli di classificazione binaria.
 
  
 
@@ -485,8 +495,10 @@ print(paste("Precision: ", precision))
  
 
 #Funzione a tutti gli elementi in ortho
+# il seguente codice rinomina le colonne per ciascun oggetto della lista 'ortho' in modo che le prime tre colonne abbiano lo stesso nome
+# di quelle presenti in 'df_selected'.
 
-ortho <- map(ortho, function(x) {
+ortho <- map(ortho, function(x) {    # x rappresenta ciascun oggetto della lista 'ortho'
 
   names(x) <- colnames(df_selected)[1:3]
 
@@ -502,9 +514,12 @@ ortho <- map(ortho, function(x) {
 
 t0<-Sys.time()
 
-classificazione_RF_list <- pbapply::pblapply(names(ortho), function(name) {
+# il seguente codice utilizza la funzione pbapply() per applicare il modello di classificazione RF a ciascun elemento
+# della lista 'ortho', effettuando previsioni di classificazione per ciascun elemento memorizzando le previsioni in una lista.
 
-  terra::predict(ortho[[name]], RF, na.rm=TRUE) #gli NA sono dello sfondo, quindi possiamo escluderli
+classificazione_RF_list <- pbapply::pblapply(names(ortho), function(name) {    # pbapply() è una versione parallelizzata di 'lapply()'
+
+  terra::predict(ortho[[name]], RF, na.rm=TRUE) #gli NA sono dello sfondo, quindi possiamo escluderli. 'name' rappresenta ciascun elemento all'interno della lista 'ortho'
 
 })
 
@@ -542,11 +557,15 @@ names(classificazione_RF_list) <- names(ortho)  # Assicuriamoci che i nomi corri
 
  
 
- 
+# il seguente codice itera attraverso i nomi degli elementi in 'classificazione_RF_list' e per ciascun elemento, 
+# utilzza la funzione terra::writeRaster() per scrivere i dati raster associati su disco in file separati in formato TIFF.
 
-walk(names(classificazione_RF_list), function(name) {
+walk(names(classificazione_RF_list), function(name) {      # la funzione 'walk' viene usata per iterare sui nomi della lista
 
-  terra::writeRaster(classificazione_RF_list[[name]],
+# la differenza principale tra walk() e lapply() sta nell'output previsto. lapply() è usato per raccogliere i risultati
+# delle operazioni, mentre walk() è utilizzato per effettuare operazioni senza la necessità di raccogliere risultati specifici.
+
+terra::writeRaster(classificazione_RF_list[[name]],
 
                      filename = paste0(name, ".tif"),
 
