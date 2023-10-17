@@ -614,14 +614,19 @@ res_fiori <- data.frame(
  
 
 # Supponendo che i tuoi raster siano in un oggetto chiamato "classificazione_RF_list"
+# il seguente codice itera attraverso tutti gli elementi nella lista 'classificazione_RF_list' e per ciascun elemento,
+# estrae il raster e il nome dell'area associata. In seguito, calcola il numero di celle (pixel) nel raster, fornendo
+# informazioni sulla dimensione o risoluzione del raster.
+# Questo può essere utile quando si desidera ottenre informazioni sulla dimensione delle immmagini raster.
 
 for (i in 1:length(classificazione_RF_list)) {
 
-  raster_current <- classificazione_RF_list[[i]]
+  raster_current <- classificazione_RF_list[[i]]   # estrae l'elemento raster corrispondente all'indice 'i', l'elemento viene memorizzato nella variabile raster_current
 
- areaname <- names(classificazione_RF_list)[i]
-
-  ncell(raster_current)
+ areaname <- names(classificazione_RF_list)[i]     # è utilizzato per estrarre il nome dell'elemento corrente nella lista 'classificazione_RF:list' all'indice i
+                                                   # il nome dell'elemento viene memorizzato nella variabile area_name
+  
+ncell(raster_current)         # ncell() è funzione che restituisce il numero di pixel presenti in un raster.
 
  
 
@@ -633,13 +638,14 @@ for (i in 1:length(classificazione_RF_list)) {
 
   # Contare le celle per ogni categoria
 
-  count <- expanse(p)
+  count <- expanse(p)             # calcola il numero di celle (pixel) per ciascuna categoria (fiori ed erba) all'interno dei poligoni.
 
  
 
   # Assumendo che "fiori" siano etichettati come 1 e "erba" come 2 nel tuo raster
-
-  count_fiori <- count[1]
+  # estrae il conteggio di celle per le categorie fiori (indice 1) ed erba (indice 2) dai risultati del passo precedente.
+  
+  count_fiori <- count[1]            
 
   count_erba <- count[2]
 
