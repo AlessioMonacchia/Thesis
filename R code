@@ -36,12 +36,17 @@ library(e1071) # functions for latent class analysis, short time Fourier transfo
 
 source("R/clean_name.R") #scorciatoia per :
 
-# clean_name <- function(file) {                          # NON CAPITA
-
-#   var_name <- tools::file_path_sans_ext(basename(file)) # :: is an operator which helps to access a specific function from a specific package.
-
+# la funzione clean_name è progettata per pulire i nomi di un file e restituire un nome valido .che potrebbe essere utilizzato come nome di variabile o etichetta.
+# In particolare è pensata per rimuovere caratteri non validi e garantire che il nome risultante sia utilizzabile come nome di variabile.
+# ad esempio, se il nome fosse "123_examplefile", la funzione restituisce "x123examplefile"
+# clean_name <- function(file) {                          
+                                                         # tools::file_path_sans_ext() estrae il percorso del file senza l'estensione del file
+#   var_name <- tools::file_path_sans_ext(basename(file)) 
+                                                         # gsub() è una funzione utilizzata per sostituire pattern di testo in una stringa con altro testo o rimuoverli
+                                                         # [^[:alnum:]_] è un espressione regolare che risponde a tutti i caratteri non alfanumerici eccetto "_". gsub() rimuove tali caratteri.
 #   var_name <- gsub("[^[:alnum:]_]", "", var_name)
-
+                                                         # grepl("^[0-9]", var_name) varifica se il nome inizia con un numero. In caso affermativo la funzione aggiunge un "x" davanti al nome
+                                                         # per garantire che il nome sia valido in R
 #   if (grepl("^[0-9]", var_name)) {
 
 #     var_name <- paste0("x", var_name)
@@ -55,12 +60,13 @@ source("R/clean_name.R") #scorciatoia per :
  
 
 #Load data----
-
+# il seguente codice crea un elenco di file raster che corrispondono al modello "Ortho", assegna i loro nomi in base a una funzione 'clean_name', 
+# e quindi li converte in oggetti raster utilizzando la funzione rast(). Il risultato è una lista di oggetti raster con nomi associati.
 ortho <- list.files(pattern = "Ortho", full.names = TRUE, recursive = TRUE)%>% # this is a pipe operator, it takes the output of one function and passes it into another function as an argument.
 
-  set_names(nm = map(., clean_name)) %>%  # nm = a character vector of names to assign to the object.
+  set_names(nm = map(., clean_name)) %>%  # set_names(purrr) assegna nomi ai componenti di una lista. nm = a character vector of names to assign to the object.
 
-  map(~rast(.))
+  map(~rast(.))                           # applichiamo la funzione rast() a ciascun elemento della lista 'ortho'
 
  
 
