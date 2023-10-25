@@ -69,15 +69,16 @@ ortho <- list.files(pattern = "Ortho", full.names = TRUE, recursive = TRUE)%>% #
   map(~rast(.))                           # applichiamo la funzione rast() a ciascun elemento della lista 'ortho'
 
  
-
+# il seguente codice esegue una serie di operazioni per ottenere e leggere i file shapefile che corrispondono al modello di nome "Buffer" dalla directory specificata
+# I risultati vengono restituiti come una lista di oggetti sf (oggetti spaziali) che rappresentano i dati spaziali contenuti nei shapefiles.
 buffers <- list.files(pattern = "Buffer.*shp",                       # list.files = it produces a character vector of the names of files or directories in the named directory
 
                       full.names = TRUE, recursive = TRUE)%>%
 
-  set_names(nm = map(., clean_name)) %>%    # il . fa forse riferimento alla pipe?
+  set_names(nm = map(., clean_name)) %>%    # il . significa per ogni oggetto contenuto nella lista
 
   map(~st_read(.))                       # map(): apply a function to each element of a vector. st_read: read simple features from file or database.
-
+                                         # st_read è una funzione anonima che legge i dati da file shapefile
 # remove EL2, EY3, RA2 (2, 5, 10)
 
 buffers[[10]] <- NULL
