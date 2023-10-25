@@ -160,14 +160,19 @@ print(outside_na)
  
 
  
-
+# il seguente codice esegue una serie di operazioni per ottenere e leggere i file shpefile che corrispondono al modello di nome "fiori" dalla directory specificata.
+# I risultati vengono restituiti come una lista di oggetti sf(oggetti spaziali) che rappresentano i dati spaziali contenuti nel file shapefile.
+# Inoltre, vengono rimossi eventuali geometrie vuote o non valide. Questi dati spaziali possono includere geometrie (punti, linee, poligoni) e attributi associati.
 fiori<- list.files(pattern = "fiori.*shp", full.names = TRUE, recursive = TRUE)%>%
 
-  set_names(nm = map(., clean_name)) %>%
+  set_names(nm = map(., clean_name)) %>%  # set_names assegna nomi ai componenti di una lista
 
-  map(~st_read(.))%>%
+  map(~st_read(.))%>%                    
 
   map(~.[!st_is_empty(.), ])           # st_is_empty return for each geometry whether it is empty. ! is the logical operator for negation: !(5>1) return FALSE while "!(1>5)" returns TRUE
+                                       # questa parte di codice sembra essere utilizzata per rimuovere le geometrie vuote o non valide da ciascun shapefile.
+                                       # st_is_empty() verifica se una geometria è vuota. 
+                                       # [!st_is_empty(.), ] è una notazione di selezione che estrae solo le righe delle geometrie che sono vuote. 
 
  
 
