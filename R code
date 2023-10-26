@@ -207,11 +207,15 @@ df_erba <- map2(ortho, erba, ~terra::extract(.x, .y))
  
 
 #Nomi delle colonne di ogni dataframe
-
-df_fiori <- map(df_fiori, ~{
+# il seguente codice utilizza map() per iterare attraverso i dataframe della lista 'df_fiori' e assegna nuovi nomi alle colonne
+# di ciascun dataframe. Questo può essere utile per rinominare le colonne in modo coerente e significativo in tutti i dataframe 
+# presenti nella lista.
+df_fiori <- map(df_fiori, ~{     # gli ultimi due caratteri indicano una funzione anonima che verrà applicata a ciascun dataframe della lista df_fiori
 
   colnames(.) <- c("ID_poly", paste0("banda_", 1:(ncol(.)-1)))      # sceglie nomi per ciascuna colonna del dataframe
-
+# l'operazione assegna un vettore di nomi alle colonne. Il vettore include "ID_poly" come primo nome di colonna e poi nomi di colonne generati dinamicamente 
+# per le restanti colonne. Questi nomi vengono creati utilizzando paste0() che combina la stringa "banda_" con numeri che vanno da 1 al numero totale di
+# colonne del dataframe - 1, "ID_poly" non è incluso nel conteggio.
   .
 
 })
@@ -231,7 +235,7 @@ df_erba <- map(df_erba, ~{
  
 
 #label: aggiungiamo una colonna contenente la label per ciascun dataframe
-
+# il seguente codice aggiunge una colonna "label" chiamata "fiore" a ciascun dataframe all'interno della lista "df_fiori".
 df_fiori <- map(df_fiori, ~{
 
   .$label <- "fiore"
@@ -258,6 +262,8 @@ df_erba <- map(df_erba, ~{
 
 # Unisci tutti i dataframe in una lista
 # .id ="origin" intende aggiungere una nuova colonna dove per ogni pixel sia identificata l'immagine di appartenza
+# il codice combina tutti i dataframe della lista 'df_fiori' in un unico dataframe. La nuova colonna "origin" verrà aggiunta al dataframe
+# risultante per tenere traccia dell'origine di ciascuna riga.
 df_fiori_unified <- bind_rows(df_fiori, .id = "origin")
 
 df_erba_unified <- bind_rows(df_erba,.id = "origin")
@@ -273,7 +279,9 @@ sample_size <- 90000
  
 
 # Crea un campione bilanciato
-
+# il codice esegue il campionamento casuale con sostituzione di un numero specifico di righe dal dataframe 'df_erba_unified'
+# previamente raggruppato in base alla colonna "origin". Dopo il campionamento i dati vengono disaggregati (ungrouped), condentendo ulteriori analisi o operazioni sul dataframe
+# in un formato non raggruppato.
 df_erba_unified <- df_erba_unified %>%
 
   group_by(origin) %>%
@@ -288,7 +296,10 @@ df_erba_unified <- df_erba_unified %>%
  
 
  
-
+# il codice esegue la combinazione (concatenazione verticale) di due dataframe 'df_fiori_unified' e 'df_erba_unified' in un unico dataframe 'df_tot'.
+# Successivamente trasforma l'ID della riga in una colonna separata chiamata 'ID_pixel' e rinomina la colonna dell'ID della riga. Il risultato è un unico 
+# dataframe che contiene i dati combinati e l'ID delle righe rinominato come "ID_pixel". Questo tipo di manipolazione è spesso utile come preparazione dei 
+# dati per l'analisi o l'apprendimento automatico.
 df_tot <- rbind(df_fiori_unified, df_erba_unified) %>%
 
   rowid_to_column(.) %>%            # funzione del pacchetto dplyr che serve a convertire le righe ID in una colonna separata all'interno del dataframe.
@@ -338,8 +349,13 @@ df_selected <- df_tot %>%
  
 
 # Dividi il dataframe selezionato in set di addestramento e di test
-
+# Il codice esegue la suddivisione iniziale di un dataframe 'df_selected' in un set di addestramento e un set di test. Il set di addestramento conterrà il 70% dei dati totali, 
+# e il set di test conterrà il restante 30%. La suddivisione viene fatta in modo casuale, ma cercando di mantenere la stessa distribuzione delle etichette 'label' nei due set,
+# se specificato. Questa divisione è comune nell'apprendimento automatico per allenare un modello sui dati di addestramento e valutarlo sui dati di test al fine di misurarne 
+# le prestazioni. 
 data_split <- initial_split(df_selected, prop = 0.7, strata = "label")   # prendiamo il 70% dei dati in df_selected per utilizzarli come set di training
+# strata = "label" è un argomento opzionale che indica di suddividere i dati in modo da mantenere un bilanciamento rispetto alla colonna 'label'. Questo significa che la suddivisione
+# casuale cercherà di mantenere la stessa distribuzione delle etichette "label" nel set di addestramento e test.
 
 training_data <- training(data_split)    # estraiamo i dati di addestramento da quel 70% del totale
 
@@ -348,7 +364,9 @@ test_data <- testing(data_split)     # estraiamo i dati di test dallo stesso 70%
  
 
 # Convertiamo in un fattore
-
+# la conversione delle colonne 'label' in fattori è spesso necessaria quando si lavora con dati categorici o di classificazione nell'apprendimento automatico.
+# I modelli di apprendimento automatico spesso richiedono che le variabili di classe siano di tipo "fattore" per un corretto funzionamento. La conversione di
+# un tipo di dati di tipo "fattore" è un passo comune nella preparazione dei dati per l'addestramento di modelli di classificazione.
 training_data$label <- as.factor(training_data$label)
 
 test_data$label <- as.factor(test_data$label)
