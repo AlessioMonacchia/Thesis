@@ -401,14 +401,15 @@ tuneGrid <- expand.grid(.mtry = c(1, 2, 3),    # .mtry rappresenta il numero di 
 # le seguenti linee di codice configurano i parametri di controllo per l'addestramento di modelli di machine learning
 # utilizzando il pacchetto caret. In particolare, questi parametri vengono utilizzati durante il processo di cross-validation
 # per la valutazione delle prestazioni del modello.
-# La cross-validation verrà eseguita con 10 folds, le previsioni verranno salvate alla fine di ogni fold e verranno visualizzati messaggi dettagliati durante il processo di addestramento.
-# Questi parametri sono utilizzati per gestire il processo di addestramento e valutazione del modello in modo più controllato e informato.
+# La cross-validation verrà eseguita con 10 folds (ripetuto 10 volte), le previsioni verranno salvate alla fine di ogni fold e verranno visualizzati messaggi dettagliati durante il processo di 
+# addestramento. Questi parametri sono utilizzati per gestire il processo di addestramento e valutazione del modello in modo più controllato e informato.
 
 train_control <- trainControl(method = "cv", number = 10,   # method specifica il metodo di cross-validation da utilizzare. CV sta per cross-validation. 
-                                                              la cv è un approccio comune per valutare le prestazioni di un modello, suddividendo il dataset in diverse parti
-                                                              e addestrando il modello su una parte e valutandolo sull'altra, ripetendo questo processo più volte.
+                                                            # la cv è un approccio comune per valutare le prestazioni di un modello, suddividendo il dataset in diverse parti
+                                                            # e addestrando il modello su una parte e valutandolo sull'altra, ripetendo questo processo più volte.
 
-                              savePredictions = "final",    # savePredictions è un parametro che specifica quando le previsioni dovrebbero essere salvate. Final indica che le previsioni saranno salvate alla fine del processo di cross-validation.
+                              savePredictions = "final",    # savePredictions è un parametro che specifica quando le previsioni dovrebbero essere salvate. 
+                                                            # Final indica che le previsioni saranno salvate alla fine del processo di cross-validation.
 
                               verboseIter = TRUE)    # parametro booleano che controlla se dovrebbero essere visualizzati messaggi di output dettagliati durante il processo di addestramento del modello.
 
@@ -549,7 +550,7 @@ t0<-Sys.time()
 
 classificazione_RF_list <- pbapply::pblapply(names(ortho), function(name) {    # pbapply() è una versione parallelizzata di 'lapply()'
 
-  terra::predict(ortho[[name]], RF, na.rm=TRUE) #gli NA sono dello sfondo, quindi possiamo escluderli. 'name' rappresenta ciascun elemento all'interno della lista 'ortho'
+  terra::predict(ortho[[name]], RF, na.rm=TRUE)       #gli NA sono dello sfondo, quindi possiamo escluderli. 'name' rappresenta ciascun elemento all'interno della lista 'ortho'
 
 })
 
