@@ -479,12 +479,17 @@ print(RF)
 # Queste metriche forniscono una valutazione completa delle capacità del modello nel discrimare e classificare
 # correttamente le istanze nelle classi target.
 
+# questa riga utilizza il modello RF addestrato per effettuare previsioni sul set di dati di test, le previsioni vengono memorizzate in "predizioni"
 predizioni <- predict(RF, test_data)
 
+# calcolo della matrice di confusione: questa matrice mostra il numero di 'veri positivi', 'falsi positivi',
+# 'veri negativi' e 'falsi negativi' rispetto alle previsioni del modello. L'argomento 'positive' indica quale
+# classe deve essere considerata come la classe positiva nella valutazione della matrice di confusione.
 matrice_confusione <- confusionMatrix(predizioni, test_data$label, positive = "fiore")
 
 print(matrice_confusione)
 
+# Visualizziamo i singoli parametri che compongono la matrice di confusione
 accuracy <- matrice_confusione$overall['Accuracy']
 
 recall <- matrice_confusione$byClass["Sensitivity"]
