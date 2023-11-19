@@ -357,9 +357,9 @@ data_split <- initial_split(df_selected, prop = 0.7, strata = "label")   # prend
 # strata = "label" è un argomento opzionale che indica di suddividere i dati in modo da mantenere un bilanciamento rispetto alla colonna 'label'. Questo significa che la suddivisione
 # casuale cercherà di mantenere la stessa distribuzione delle etichette "label" nel set di addestramento e test.
 
-training_data <- training(data_split)    # estraiamo i dati di addestramento da quel 70% del totale
+training_data <- training(data_split)    # estraiamo i dati di addestramento pari al 70% del totale. Saranno usati per l'addestramento del modello.
 
-test_data <- testing(data_split)     # estraiamo i dati di test dallo stesso 70% del totale
+test_data <- testing(data_split)     # estraiamo i dati di test, pari al restante 30% del totale. Saranno usati per testare il modello creato.
 
  
 
