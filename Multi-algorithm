@@ -302,7 +302,7 @@ NNE <- train(label ~ .,
              weights = ifelse(training_data$label == "fiore", 10, 1)) # Pesi per affrontare lo squilibrio dei dati)
 
 
-#algorithms model test----
+# algorithm model test----
 predizioni_RF <- predict(RF, newdata= test_data)
 predizioni_KNN <- predict(KNN, newdata= test_data)
 predizioni_SVM <- predict(SVM, newdata= test_data)
@@ -320,9 +320,21 @@ model_scores(predizioni_NNE, test_data$label)
 
 #Confronto tra Prestazioni su Addestramento e Test:
 # Calcola le prestazioni sul set di addestramento
-train_predictions <- predict(RF, newdata = training_data)
-train_conf_matrix <- confusionMatrix(as.factor(train_predictions), training_data$label, positive = "fiore")
-print(train_conf_matrix)
+train_predictions_RF <- predict(RF, newdata = training_data)
+train_conf_matrix_RF <- confusionMatrix(as.factor(train_predictions_RF), training_data$label, positive = "fiore")
+print(train_conf_matrix_RF)
+
+train_predictions_KNN <- predict(KNN, newdata = training_data)
+train_conf_matrix_KNN <- confusionMatrix(as.factor(train_predictions_KNN), training_data$label, positive = "fiore")
+print(train_conf_matrix_KNN)
+
+train_predictions_SVM <- predict(SVM, newdata = training_data)
+train_conf_matrix_SVM <- confusionMatrix(as.factor(train_predictions_SVM), training_data$label, positive = "fiore")
+print(train_conf_matrix_SVM)
+
+train_predictions_NNE <- predict(NNE, newdata = training_data)
+train_conf_matrix_NNE <- confusionMatrix(as.factor(train_predictions_NNE), training_data$label, positive = "fiore")
+print(train_conf_matrix_NNE)
 
 
 
@@ -332,7 +344,7 @@ print(train_conf_matrix)
 df_selected <- na.omit(df_selected)
 
 set.seed(123)
-cv_results <- train(
+cv_results_RF <- train(
   label ~ .,
   data = df_selected, # Usa l'intero dataset prima della divisione
   method = "ranger",
@@ -346,27 +358,106 @@ cv_results <- train(
   metric = "ROC"
 )
 
-print(cv_results)
+print(cv_results_RF)
+
+
+cv_results_KNN <- train(label ~ ., 
+                               data = df_selected,
+                               method = "knn",
+                        trControl = trainControl(
+                          method = "cv",
+                          number = 10,
+                          classProbs = TRUE,
+                          summaryFunction = twoClassSummary
+                        ),
+                               tuneGrid = KNNGrid,
+                               metric = "ROC",
+                               weights = ifelse(df_selected$label == "fiore", 10, 1))
+print(cv_results_KNN)
+
+
+cv_results_SVM <- train(label ~ ., 
+             data = df_selected,
+             method = "svmLinear2",
+             trControl = trainControl(
+               method = "cv",
+               number = 10,
+               classProbs = TRUE,
+               summaryFunction = twoClassSummary
+             ),
+             tuneGrid = SVMGrid,
+             metric = "ROC",
+             allowParallel = T,
+             importance = 'impurity', # Qui puoi impostare 'importance' per 'ranger'
+             weights = ifelse(df_selected$label == "fiore", 10, 1),) # Pesi per affrontare lo squilibrio dei dati
+
+print(cv_results_SVM)
+
+
+cv_results_NNE <- train(label ~ ., 
+             data = df_selected, 
+             method = "nnet",
+             trControl = trainControl(
+               method = "cv",
+               number = 10,
+               classProbs = TRUE,
+               summaryFunction = twoClassSummary
+             ),
+             tuneGrid = NNE_grid, 
+             allowParallel = T,
+             metric = "ROC",
+             importance = 'impurity', # Qui puoi impostare 'importance' per 'ranger'
+             weights = ifelse(df_selected$label == "fiore", 10, 1)) # Pesi per affrontare lo squilibrio dei dati)
+
+print(cv_results_NNE)
+
+
 
 #Verifichiamo la robustezza----
 
 importance <- varImp(RF)
 print(importance)
 
+importance <- varImp(KNN)
+print(importance)
+
+importance <- varImp(SVM)
+print(importance)
+
+importance <- varImp(NNE)
+print(importance)
+
 
 #Confronto delle Prestazioni su Set Diversi:
-print(cv_results$results)
+print(cv_results_RF$results)
 
 #Analisi della Curva ROC:
 # Calcola e traccia la curva ROC per il set di test
-test_probabilities <- predict(RF, test_data, type = "prob")
-roc_test <- roc(response = test_data$label, test_probabilities[, "fiore"])
+test_probabilities_RF <- predict(RF, test_data, type = "prob")
+roc_test_RF <- roc(response = test_data$label, test_probabilities_RF[, "fiore"])
 
-# Calcola l'AUC
-auc(roc_test)
+test_probabilities_KNN <- predict(KNN, test_data, type = "prob")
+roc_test_KNN <- roc(response = test_data$label, test_probabilities_KNN[, "fiore"])
+
+test_probabilities_SVM <- predict(SVM, test_data, type = "prob")
+roc_test_SVM <- roc(response = test_data$label, test_probabilities_SVM[, "fiore"])
+
+test_probabilities_NNE <- predict(NNE, test_data, type = "prob")
+roc_test_NNE <- roc(response = test_data$label, test_probabilities_NNE[, "fiore"])
+
 
 # Aggiungi l'AUC al grafico
-plot(roc_test, main = paste("ROC Curve (AUC =", auc(roc_test), ")"))
+
+# divide window into a 3X2 grid
+par( mfrow= c(2,2) )
+
+plot(roc_test_RF, main = paste("RF ROC Curve (AUC =", auc(roc_test_RF), ")"))
+
+plot(roc_test_KNN, main = paste("KNN ROC Curve (AUC =", auc(roc_test_KNN), ")"))
+
+plot(roc_test_SVM, main = paste("SVM ROC Curve (AUC =", auc(roc_test_SVM), ")"))
+
+plot(roc_test_NNE, main = paste("NNE ROC Curve (AUC =", auc(roc_test_NNE), ")"))
 
 
 
