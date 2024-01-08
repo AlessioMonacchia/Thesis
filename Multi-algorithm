@@ -183,7 +183,11 @@ df_3D$color[df_3D_e] <- "green"
 # Attempt with scatterplot3D package
 
 scatterplot3d(
-  df_3D[,1:3], 
+  df_3D[,1:3],
+  main="3D Scatter Plot",
+  xlab = "Band 1",
+  ylab = "band 2",
+  zlab = "band 3",
   pch = 16, 
   color = df_3D$color,
   #type = "h",
