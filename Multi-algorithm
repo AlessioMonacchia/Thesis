@@ -302,7 +302,7 @@ NNE <- train(label ~ .,
              weights = ifelse(training_data$label == "fiore", 10, 1)) # Pesi per affrontare lo squilibrio dei dati)
 
 
-#RF model test----
+#algorithms model test----
 predizioni_RF <- predict(RF, newdata= test_data)
 predizioni_KNN <- predict(KNN, newdata= test_data)
 predizioni_SVM <- predict(SVM, newdata= test_data)
