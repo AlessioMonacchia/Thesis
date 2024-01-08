@@ -1,0 +1,543 @@
+#Library----
+library(terra)
+library(pROC)
+library(caret)
+library(sf)
+library(purrr)
+library(tools)
+library(tidyverse)
+library(rsample)
+library(furrr)
+library(pbapply)
+library(ranger)
+library(tidymodels)
+library(e1071)
+library(scatterplot3d)
+#library(foreach)
+#library(doParallel)
+#library(doMC)
+
+#Functions----
+
+clean_name <- function(file) {
+  var_name <- tools::file_path_sans_ext(basename(file))
+  var_name <- gsub("[^[:alnum:]_]", "", var_name)
+  if (grepl("^[0-9]", var_name)) {
+    var_name <- paste0("x", var_name)
+  }
+  var_name
+}
+
+
+model_scores <- function(model_predictions, response_variable){
+  matrice_confusione <- confusionMatrix(model_predictions, response_variable, positive = "fiore")
+  accuracy <- matrice_confusione$overall['Accuracy']
+  recall <- matrice_confusione$byClass["Sensitivity"]
+  f1 <- matrice_confusione$byClass["F1"]
+  auc_roc <- roc(test_data$label, as.numeric(model_predictions))
+  auc <- auc(auc_roc)
+  precision <- matrice_confusione$byClass["Pos Pred Value"]
+  
+  print(matrice_confusione)
+  print(paste("Accuracy: ", accuracy))
+  print(paste("Recall: ", recall))
+  print(paste("F1-score: ", f1))
+  print(paste("AUC-ROC", auc))
+  print(paste("Precision: ", precision))
+  
+}
+
+
+#Load data----
+
+setwd("/home/alessio/Tesi")
+
+# registerDoMC(cores = 6)
+
+cores <- detectCores()
+
+cl <- makeCluster(6)
+
+registerDoParallel(cl)
+
+ortho <- list.files(pattern = "Ortho", 
+                    full.names = TRUE,
+                    recursive = T)%>% 
+  set_names(nm = map(., clean_name)) %>% 
+  map(~rast(.))
+
+stopCluster(cl)
+
+ortho <- ortho[1:5]
+
+
+buffers <- list.files(pattern = "buffer.*shp",
+                      full.names = TRUE,
+                      recursive = T)%>% 
+  set_names(nm = map(., clean_name)) %>% 
+  map(~st_read(.))
+
+
+registerDoParallel(cl)
+
+ortho<-map2(ortho, map(buffers, ~ ext(.x)), ~ crop(.x, .y))
+ortho<-map2(ortho, buffers, ~ mask(.x, .y))
+
+
+#Fiori ed Erba
+
+
+fiori<- list.files(pattern = "fiori.*shp", full.names = TRUE, recursive = T)%>% 
+  set_names(nm = map(., clean_name)) %>% 
+  map(~st_read(.))%>% 
+  map(~.[!st_is_empty(.), ])
+
+fiori <- fiori [1:5]
+
+erba<-list.files(pattern = "erba.*shp", full.names = TRUE, recursive = T)%>% 
+  set_names(nm = map(., clean_name)) %>% 
+  map(~st_read(.))%>% 
+  map(~.[!st_is_empty(.), ])
+
+erba <- erba[1:5]
+
+
+#Values extraction----
+df_fiori <- map2(ortho, fiori, ~terra::extract(.x, .y))
+df_erba <- map2(ortho, erba, ~terra::extract(.x, .y))
+
+
+#Nomi delle colonne di ogni dataframe
+df_fiori <- map(df_fiori, ~{
+  colnames(.) <- c("ID_poly", paste0("banda_", 1:(ncol(.)-1)))
+  .
+})
+
+df_erba <- map(df_erba, ~{
+  colnames(.) <- c("ID_poly", paste0("banda_", 1:(ncol(.)-1)))
+  .
+})
+
+
+#label
+df_fiori <- map(df_fiori, ~{
+  .$label <- "fiore"
+  .
+})
+
+df_erba <- map(df_erba, ~{
+  .$label <- "erba"
+  .
+})
+
+#Bind dataframes----
+
+# Unisci tutti i dataframe in una lista
+df_fiori_unified <- bind_rows(df_fiori, .id = "origin")
+df_erba_unified <- bind_rows(df_erba,.id = "origin")
+
+
+set.seed(123) # Per riproducibilità
+size_of_fiori <- nrow(df_fiori_unified)
+# Numero di righe da campionare da ciascun gruppo
+
+# Crea un campione bilanciato
+df_erba_unified <- df_erba_unified %>%
+  group_by(origin) %>%
+  sample_n(size = size_of_fiori, replace = TRUE) %>%
+  ungroup()
+
+df_tot <- rbind(df_fiori_unified, df_erba_unified) %>% 
+  rowid_to_column(.) %>%
+  rename(ID_pixel = rowid)
+
+
+#Seleziono le bande
+
+set.seed(123)
+
+# Crea un nuovo dataframe con solo le colonne che vuoi usare
+df_selected <- dplyr::select(df_tot, banda_1, banda_2, banda_3, label) %>%
+  na.omit()
+
+
+#Exploratory data analysis ----
+
+# Provo il 3D plot
+
+df_3D <- df_selected
+
+# add color column
+
+df_3D$color <- NA
+
+df_3D_f <- which(df_3D$label == "fiore", )
+
+df_3D_e <- which(df_3D$label == "erba", )
+
+df_3D$color[df_3D_f] <- "red"
+
+df_3D$color[df_3D_e] <- "green"
+
+
+# Attempt with scatterplot3D package
+
+scatterplot3d(
+  df_3D[,1:3], 
+  pch = 16, 
+  color = df_3D$color,
+  #type = "h",
+  grid=T, box=T)
+legend("bottom", legend = c("flower", "grass"),
+       col =  c("red", "green"), 
+       pch = c(16), 
+       inset = -0.25, xpd = T, horiz = T)
+
+#Splitting into train and test----
+
+
+# Dividi il dataframe selezionato in set di addestramento e di test
+data_split <- initial_split(df_selected, prop = 0.7, strata = "label")
+training_data <- training(data_split)
+test_data <- testing(data_split)
+
+# Convertiamo in un fattore-----
+training_data$label <- as.factor(training_data$label)
+test_data$label <- as.factor(test_data$label)
+
+#RF Model----
+train_control <- trainControl(
+  method = "cv",             # Cross-validation
+  number = 10,               # Numero di fold per la cross-validation
+  savePredictions = "final", # Salva le predizioni per ogni modello
+  classProbs = TRUE,         # Calcola le probabilità di appartenenza alle classi
+  summaryFunction = twoClassSummary # Funzione di riepilogo per classificazione binaria
+)
+
+tuneGrid <- expand.grid(
+  mtry = c(1,2,3),       # Numero di variabili considerate a ogni split
+  splitrule = c("gini", "extratrees"),
+  min.node.size = c(1, 3, 5)
+)
+
+# Addestra il modello utilizzando i pesi delle classi
+set.seed(123)
+
+start_time <- proc.time()
+
+RF <- train(
+  label ~ .,
+  data = training_data,
+  method = "ranger",
+  trControl = train_control,
+  tuneGrid = tuneGrid,
+  metric = "ROC",
+  importance = 'impurity', # Qui puoi impostare 'importance' per 'ranger'
+  weights = ifelse(training_data$label == "fiore", 10, 1) # Pesi per affrontare lo squilibrio dei dati
+)
+
+# Measure elapsed time
+end_time <- proc.time() - start_time
+
+# Print the elapsed time
+cat("Elapsed time:", end_time[3], "seconds\n")
+
+print(RF)
+
+
+# KNN model ----
+
+KNNGrid <- expand.grid(k = c(3, 5, 10))
+
+
+# Addestra il modello utilizzando i pesi delle classi
+
+KNN <- train(label ~ ., 
+             data = training_data,
+             method = "knn",
+             trControl = train_control,
+             tuneGrid = KNNGrid,
+             metric = "ROC",
+             weights = ifelse(training_data$label == "fiore", 10, 1)) # Pesi per affrontare lo squilibrio dei dati
+
+# Support Vector Machine model ----
+
+# tuning parameters
+
+SVMGrid <- expand.grid(cost = c(10, 20, 50))
+
+
+# Addestra il modello utilizzando i pesi delle classi
+
+SVM <- train(label ~ ., 
+             data = training_data,
+             method = "svmLinear2",
+             trControl = train_control,
+             tuneGrid = SVMGrid,
+             metric = "ROC",
+             allowParallel = T,
+             importance = 'impurity', # Qui puoi impostare 'importance' per 'ranger'
+             weights = ifelse(training_data$label == "fiore", 10, 1),) # Pesi per affrontare lo squilibrio dei dati
+
+
+# NNE Model ----
+
+# comprehensible alternative
+
+NNE_grid <- expand.grid(decay = c(0.5, 1e-2, 1e-4), # weight decay
+                        
+                        size = c(2, 4, 8)) # number of hidden units
+
+
+# Train the neural network using train()
+
+NNE <- train(label ~ ., 
+             data = training_data, 
+             method = "nnet",
+             trControl = train_control,
+             tuneGrid = NNE_grid, 
+             allowParallel = T,
+             metric = "ROC",
+             importance = 'impurity', # Qui puoi impostare 'importance' per 'ranger'
+             weights = ifelse(training_data$label == "fiore", 10, 1)) # Pesi per affrontare lo squilibrio dei dati)
+
+
+#RF model test----
+predizioni_RF <- predict(RF, newdata= test_data)
+predizioni_KNN <- predict(KNN, newdata= test_data)
+predizioni_SVM <- predict(SVM, newdata= test_data)
+predizioni_NNE <- predict(NNE, newdata= test_data)
+
+
+model_scores(predizioni_RF, test_data$label)
+model_scores(predizioni_KNN, test_data$label)
+model_scores(predizioni_SVM, test_data$label)
+model_scores(predizioni_NNE, test_data$label)
+
+
+
+#Valutiamo l'overfitting----
+
+#Confronto tra Prestazioni su Addestramento e Test:
+# Calcola le prestazioni sul set di addestramento
+train_predictions <- predict(RF, newdata = training_data)
+train_conf_matrix <- confusionMatrix(as.factor(train_predictions), training_data$label, positive = "fiore")
+print(train_conf_matrix)
+
+
+
+#Cross-Validation Esterna
+# Esegui k-fold cross-validation
+
+df_selected <- na.omit(df_selected)
+
+set.seed(123)
+cv_results <- train(
+  label ~ .,
+  data = df_selected, # Usa l'intero dataset prima della divisione
+  method = "ranger",
+  trControl = trainControl(
+    method = "cv",
+    number = 10,
+    classProbs = TRUE,
+    summaryFunction = twoClassSummary
+  ),
+  tuneGrid = tuneGrid,
+  metric = "ROC"
+)
+
+print(cv_results)
+
+#Verifichiamo la robustezza----
+
+importance <- varImp(RF)
+print(importance)
+
+
+#Confronto delle Prestazioni su Set Diversi:
+print(cv_results$results)
+
+#Analisi della Curva ROC:
+# Calcola e traccia la curva ROC per il set di test
+test_probabilities <- predict(RF, test_data, type = "prob")
+roc_test <- roc(response = test_data$label, test_probabilities[, "fiore"])
+
+# Calcola l'AUC
+auc(roc_test)
+
+# Aggiungi l'AUC al grafico
+plot(roc_test, main = paste("ROC Curve (AUC =", auc(roc_test), ")"))
+
+
+
+# Le caratteristiche che catturano meglio le differenze di colore 
+# (probabilmente le bande 1 e 2, a seconda di come sono state misurate) 
+# saranno le più informative per il modello. Se la banda 3 non cambia tra fiori 
+# gialli e bianchi o non riflette differenze significative che aiutano a 
+# discriminare tra le due classi, allora è ragionevole che il modello le assegni 
+# un'importanza bassa o nulla.
+# 
+# Nel contesto del machine learning applicato all'analisi delle immagini, 
+# soprattutto in applicazioni come la classificazione di fiori dove il colore è
+# un fattore distintivo importante, le bande specifiche che catturano
+# l'informazione rilevante (come quelle che corrispondono alle lunghezze 
+# d'onda in cui i fiori hanno il maggiore contrasto) saranno molto più utili
+# per il modello.
+# 
+# Questo può essere esaminato in termini di:
+
+
+#2:Caratteristiche Spettrali:
+
+# Per esempio, crea un boxplot per confrontare le distribuzioni delle bande
+ggplot(df_selected, aes(x = label, y = banda_1, fill = label)) +
+  geom_boxplot() +
+  labs(title = "Distribuzione della Banda 1 per Classe", x = "Classe", y = "Valore Banda 1")
+
+
+
+# Il boxplot che abbiamo generato mostra la distribuzione dei valori della banda 1 
+# per le due classi: "erba" e "fiore". Dall'immagine, sembra che ci sia una 
+# differenza significativa nella distribuzione dei valori tra le due classi, 
+# il che potrebbe spiegare perché la banda 1 è stata identificata come la più
+# importante dal nostro modello di classificazione.
+# 
+# La classe "fiore" mostra valori più alti nella banda 1 rispetto alla classe 
+# "erba", il che suggerisce che questa banda cattura una caratteristica distintiva
+# che aiuta il modello a discriminare tra le due classi. Questa differenza 
+# potrebbe corrispondere alla riflettanza o all'assorbenza luminosa specifica dei
+# fiori gialli e bianchi nella banda 1 dello spettro visibile, presumibilmente
+# legata al colore giallo.
+
+
+
+
+# saveRDS(RF, file = "/home/PERSONALE/ludovico.chieffallo2/Showcase_proj/model_RF.rds")
+# 
+# 
+# #per caricarlo RF_loaded <- readRDS(file = "/home/PERSONALE/ludovico.chieffallo2/Showcase_proj/model_rf.rds")
+# 
+# 
+# 
+# 
+# #Funzione a tutti gli elementi in ortho
+# ortho <- map(ortho, function(x) {
+#   # Seleziona solo le prime tre bande
+#   x <- terra::subset(x, 1:3)
+#   # Rinomina queste bande
+#   names(x) <- colnames(df_selected)[1:3]
+#   return(x)
+# })
+# 
+# 
+# 
+#Application of model and save----
+
+t0<-Sys.time()
+
+classificazione_RF_list <- pbapply::pblapply(names(ortho), function(name) {
+  terra::predict(ortho[[name]], RF, na.rm=TRUE) #gli NA sono dello sfondo, quindi possiamo escluderli
+})
+
+t1<-Sys.time()
+t1-t0
+
+#Time difference of 30.24887 mins
+
+#QUI
+
+#classificazione_RF_list <- future_map(ortho[[1]], ~predict(., RF),.progress = TRUE)
+
+
+# Salva la classificazione come un file GeoTIFF
+#output_filename <- "classificazione_RF.tif"
+#writeRaster(classificazione_RF, output_filename, overwrite = TRUE)
+
+
+names(classificazione_RF_list) <- names(ortho)  # Assicuriamoci che i nomi corrispondano
+
+
+walk(names(classificazione_RF_list), function(name) {
+  terra::writeRaster(classificazione_RF_list[[name]],
+                     filename = paste0(name, ".tif"),
+                     overwrite=TRUE)
+})
+
+
+# OR 
+
+
+#### Raster creation
+
+# aggiustiamo i nomi
+
+ortho$Ortho_BE1$`Ortho_BE1_4` <- NULL
+ortho$Ortho_EL1$`Ortho_EL1_4` <- NULL
+ortho$Ortho_EY2$`Ortho_EY2_4` <- NULL
+ortho$Ortho_EY5$`Ortho_EY5_4` <- NULL
+ortho$Ortho_FR2$`Ortho_FR2_4` <- NULL
+
+ortho <- map(ortho, function(x) {
+  
+  names(x) <- colnames(df_selected)[1:3]
+  
+  return(x)
+  
+})
+
+
+
+# Creare una lista vuota per memorizzare i risultati
+
+classificazione_RF_list <- list()
+
+# Ciclo for per applicare predizioni modelli a tutti gli elementi di ortho
+
+for (name in names(ortho)) {
+  
+  previsioni <- terra::predict(ortho[[name]], RF, na.rm = TRUE)
+  
+  classificazione_RF_list[[name]] <- previsioni
+  
+}
+
+
+# Salvare la classificazione in formato GeoTiff
+
+names(classificazione_RF_list) <- names(ortho) # Assicuriamoci che i nomi corrispondano
+
+
+walk(names(classificazione_RF_list), function(name) {
+  
+  terra::writeRaster(classificazione_RF_list[[name]],
+                     
+                     filename = paste0(name, ".tif"),
+                     
+                     overwrite = TRUE)
+  
+})
+
+
+
+#Continamo i pixel per area----
+
+# Funzione per conteggiare i pixel per ogni categoria
+countCategoryPixels <- function(classification, category) {
+  sum(values(classification) == category, na.rm = TRUE)
+}
+
+# Calcola il conteggio per ogni orthomosaico e per ogni categoria
+results <- lapply(classificazione_RF_list, function(classification) {
+  # Assumiamo che 1 sia il valore per "fiore" e 2 per "erba"
+  count_flowers <- countCategoryPixels(classification, 2)
+  count_grass <- countCategoryPixels(classification, 1)
+  
+  return(data.frame(Flowers = count_flowers, Grass = count_grass))
+})
+
+# Combina i risultati per ottenere il totale
+total_counts <- do.call(rbind, results)
+row.names(total_counts) <- names(classificazione_RF_list) # Opzionale: aggiungi i nomi
+
+# Visualizza o salva i risultati
+print(total_counts)
