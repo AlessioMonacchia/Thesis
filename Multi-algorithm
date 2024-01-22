@@ -1,4 +1,4 @@
-#Library----
+# Library----
 library(terra)
 library(pROC)
 library(caret)
@@ -13,11 +13,8 @@ library(ranger)
 library(tidymodels)
 library(e1071)
 library(scatterplot3d)
-#library(foreach)
-#library(doParallel)
-#library(doMC)
 
-#Functions----
+# Functions----
 
 clean_name <- function(file) {
   var_name <- tools::file_path_sans_ext(basename(file))
@@ -48,17 +45,10 @@ model_scores <- function(model_predictions, response_variable){
 }
 
 
-#Load data----
+# Load data----
 
 setwd("/home/alessio/Tesi")
 
-# registerDoMC(cores = 6)
-
-cores <- detectCores()
-
-cl <- makeCluster(6)
-
-registerDoParallel(cl)
 
 ortho <- list.files(pattern = "Ortho", 
                     full.names = TRUE,
@@ -66,9 +56,7 @@ ortho <- list.files(pattern = "Ortho",
   set_names(nm = map(., clean_name)) %>% 
   map(~rast(.))
 
-stopCluster(cl)
-
-ortho <- ortho[1:5]
+ortho <- ortho[1:2]
 
 
 buffers <- list.files(pattern = "buffer.*shp",
@@ -77,8 +65,10 @@ buffers <- list.files(pattern = "buffer.*shp",
   set_names(nm = map(., clean_name)) %>% 
   map(~st_read(.))
 
+buffers <- buffers[1:2]
 
-registerDoParallel(cl)
+
+# Crop and mask rasters
 
 ortho<-map2(ortho, map(buffers, ~ ext(.x)), ~ crop(.x, .y))
 ortho<-map2(ortho, buffers, ~ mask(.x, .y))
@@ -92,17 +82,17 @@ fiori<- list.files(pattern = "fiori.*shp", full.names = TRUE, recursive = T)%>%
   map(~st_read(.))%>% 
   map(~.[!st_is_empty(.), ])
 
-fiori <- fiori [1:5]
+fiori <- fiori [1:2]
 
 erba<-list.files(pattern = "erba.*shp", full.names = TRUE, recursive = T)%>% 
   set_names(nm = map(., clean_name)) %>% 
   map(~st_read(.))%>% 
   map(~.[!st_is_empty(.), ])
 
-erba <- erba[1:5]
+erba <- erba[1:2]
 
 
-#Values extraction----
+# Values extraction----
 df_fiori <- map2(ortho, fiori, ~terra::extract(.x, .y))
 df_erba <- map2(ortho, erba, ~terra::extract(.x, .y))
 
@@ -130,7 +120,7 @@ df_erba <- map(df_erba, ~{
   .
 })
 
-#Bind dataframes----
+# Bind dataframes----
 
 # Unisci tutti i dataframe in una lista
 df_fiori_unified <- bind_rows(df_fiori, .id = "origin")
@@ -161,7 +151,7 @@ df_selected <- dplyr::select(df_tot, banda_1, banda_2, banda_3, label) %>%
   na.omit()
 
 
-#Exploratory data analysis ----
+# Exploratory data analysis ----
 
 # Provo il 3D plot
 
@@ -180,7 +170,7 @@ df_3D$color[df_3D_f] <- "red"
 df_3D$color[df_3D_e] <- "green"
 
 
-# Attempt with scatterplot3D package
+# 3D plot with 'scatterplot3D' package
 
 scatterplot3d(
   df_3D[,1:3],
@@ -197,7 +187,7 @@ legend("bottom", legend = c("flower", "grass"),
        pch = c(16), 
        inset = -0.25, xpd = T, horiz = T)
 
-#Splitting into train and test----
+# Splitting into train and test----
 
 
 # Dividi il dataframe selezionato in set di addestramento e di test
@@ -209,7 +199,7 @@ test_data <- testing(data_split)
 training_data$label <- as.factor(training_data$label)
 test_data$label <- as.factor(test_data$label)
 
-#RF Model----
+# RF Model----
 train_control <- trainControl(
   method = "cv",             # Cross-validation
   number = 10,               # Numero di fold per la cross-validation
@@ -218,7 +208,7 @@ train_control <- trainControl(
   summaryFunction = twoClassSummary # Funzione di riepilogo per classificazione binaria
 )
 
-tuneGrid <- expand.grid(
+RFGrid <- expand.grid(
   mtry = c(1,2,3),       # Numero di variabili considerate a ogni split
   splitrule = c("gini", "extratrees"),
   min.node.size = c(1, 3, 5)
@@ -234,7 +224,8 @@ RF <- train(
   data = training_data,
   method = "ranger",
   trControl = train_control,
-  tuneGrid = tuneGrid,
+  tuneGrid = RFGrid,
+  allowParallel = T,
   metric = "ROC",
   importance = 'impurity', # Qui puoi impostare 'importance' per 'ranger'
   weights = ifelse(training_data$label == "fiore", 10, 1) # Pesi per affrontare lo squilibrio dei dati
@@ -261,6 +252,7 @@ KNN <- train(label ~ .,
              method = "knn",
              trControl = train_control,
              tuneGrid = KNNGrid,
+             #allowParallel = T,
              metric = "ROC",
              weights = ifelse(training_data$label == "fiore", 10, 1)) # Pesi per affrontare lo squilibrio dei dati
 
@@ -320,26 +312,29 @@ model_scores(predizioni_NNE, test_data$label)
 
 
 
-#Valutiamo l'overfitting----
+# Valutiamo l'overfitting----
 
 #Confronto tra Prestazioni su Addestramento e Test:
 # Calcola le prestazioni sul set di addestramento
 train_predictions_RF <- predict(RF, newdata = training_data)
 train_conf_matrix_RF <- confusionMatrix(as.factor(train_predictions_RF), training_data$label, positive = "fiore")
 print(train_conf_matrix_RF)
+model_scores(train_predictions_RF, training_data$label)
 
 train_predictions_KNN <- predict(KNN, newdata = training_data)
 train_conf_matrix_KNN <- confusionMatrix(as.factor(train_predictions_KNN), training_data$label, positive = "fiore")
 print(train_conf_matrix_KNN)
+model_scores(train_predictions_KNN, training_data$label)
 
 train_predictions_SVM <- predict(SVM, newdata = training_data)
 train_conf_matrix_SVM <- confusionMatrix(as.factor(train_predictions_SVM), training_data$label, positive = "fiore")
 print(train_conf_matrix_SVM)
+model_scores(train_predictions_SVM, training_data$label)
 
 train_predictions_NNE <- predict(NNE, newdata = training_data)
 train_conf_matrix_NNE <- confusionMatrix(as.factor(train_predictions_NNE), training_data$label, positive = "fiore")
 print(train_conf_matrix_NNE)
-
+model_scores(train_predictions_NNE, training_data$label)
 
 
 #Cross-Validation Esterna
@@ -358,7 +353,7 @@ cv_results_RF <- train(
     classProbs = TRUE,
     summaryFunction = twoClassSummary
   ),
-  tuneGrid = tuneGrid,
+  tuneGrid = RFGrid,
   metric = "ROC"
 )
 
@@ -417,7 +412,7 @@ print(cv_results_NNE)
 
 
 
-#Verifichiamo la robustezza----
+# Verifichiamo la robustezza----
 
 importance <- varImp(RF)
 print(importance)
@@ -526,95 +521,77 @@ ggplot(df_selected, aes(x = label, y = banda_1, fill = label)) +
 # 
 # 
 # 
-#Application of model and save----
+# Application of model and save----
 
-t0<-Sys.time()
+#Funzione a tutti gli elementi in ortho
+ortho <- map(ortho, function(x) {
+  # Seleziona solo le prime tre bande
+  x <- terra::subset(x, 1:3)
+  # Rinomina queste bande
+  names(x) <- colnames(df_selected)[1:3]
+  return(x)
+})
+
 
 classificazione_RF_list <- pbapply::pblapply(names(ortho), function(name) {
   terra::predict(ortho[[name]], RF, na.rm=TRUE) #gli NA sono dello sfondo, quindi possiamo escluderli
 })
 
-t1<-Sys.time()
-t1-t0
+classificazione_KNN_list <- pbapply::pblapply(names(ortho), function(name) {
+  terra::predict(ortho[[name]], KNN, na.rm=TRUE) #gli NA sono dello sfondo, quindi possiamo escluderli
+})
 
-#Time difference of 30.24887 mins
+classificazione_SVM_list <- pbapply::pblapply(names(ortho), function(name) {
+  terra::predict(ortho[[name]], SVM, na.rm=TRUE) #gli NA sono dello sfondo, quindi possiamo escluderli
+})
 
-#QUI
+classificazione_NNE_list <- pbapply::pblapply(names(ortho), function(name) {
+  terra::predict(ortho[[name]], NNE, na.rm=TRUE) #gli NA sono dello sfondo, quindi possiamo escluderli
+})
 
-#classificazione_RF_list <- future_map(ortho[[1]], ~predict(., RF),.progress = TRUE)
 
-
-# Salva la classificazione come un file GeoTIFF
-#output_filename <- "classificazione_RF.tif"
-#writeRaster(classificazione_RF, output_filename, overwrite = TRUE)
-
+# Salvare la classificazione in formato GeoTiff
 
 names(classificazione_RF_list) <- names(ortho)  # Assicuriamoci che i nomi corrispondano
 
 
 walk(names(classificazione_RF_list), function(name) {
   terra::writeRaster(classificazione_RF_list[[name]],
-                     filename = paste0(name, ".tif"),
+                     filename = paste0(name, "RF.tif"),
+                     overwrite=TRUE)
+})
+
+names(classificazione_KNN_list) <- names(ortho)  # Assicuriamoci che i nomi corrispondano
+
+
+walk(names(classificazione_KNN_list), function(name) {
+  terra::writeRaster(classificazione_KNN_list[[name]],
+                     filename = paste0(name, "KNN.tif"),
                      overwrite=TRUE)
 })
 
 
-# OR 
+names(classificazione_SVM_list) <- names(ortho)  # Assicuriamoci che i nomi corrispondano
 
 
-#### Raster creation
-
-# aggiustiamo i nomi
-
-ortho$Ortho_BE1$`Ortho_BE1_4` <- NULL
-ortho$Ortho_EL1$`Ortho_EL1_4` <- NULL
-ortho$Ortho_EY2$`Ortho_EY2_4` <- NULL
-ortho$Ortho_EY5$`Ortho_EY5_4` <- NULL
-ortho$Ortho_FR2$`Ortho_FR2_4` <- NULL
-
-ortho <- map(ortho, function(x) {
-  
-  names(x) <- colnames(df_selected)[1:3]
-  
-  return(x)
-  
+walk(names(classificazione_SVM_list), function(name) {
+  terra::writeRaster(classificazione_SVM_list[[name]],
+                     filename = paste0(name, "SVM.tif"),
+                     overwrite=TRUE)
 })
 
 
-
-# Creare una lista vuota per memorizzare i risultati
-
-classificazione_RF_list <- list()
-
-# Ciclo for per applicare predizioni modelli a tutti gli elementi di ortho
-
-for (name in names(ortho)) {
-  
-  previsioni <- terra::predict(ortho[[name]], RF, na.rm = TRUE)
-  
-  classificazione_RF_list[[name]] <- previsioni
-  
-}
+names(classificazione_NNE_list) <- names(ortho)  # Assicuriamoci che i nomi corrispondano
 
 
-# Salvare la classificazione in formato GeoTiff
-
-names(classificazione_RF_list) <- names(ortho) # Assicuriamoci che i nomi corrispondano
-
-
-walk(names(classificazione_RF_list), function(name) {
-  
-  terra::writeRaster(classificazione_RF_list[[name]],
-                     
-                     filename = paste0(name, ".tif"),
-                     
-                     overwrite = TRUE)
-  
+walk(names(classificazione_NNE_list), function(name) {
+  terra::writeRaster(classificazione_NNE_list[[name]],
+                     filename = paste0(name, "NNE.tif"),
+                     overwrite=TRUE)
 })
 
 
-
-#Continamo i pixel per area----
+# Continamo i pixel per area----
 
 # Funzione per conteggiare i pixel per ogni categoria
 countCategoryPixels <- function(classification, category) {
