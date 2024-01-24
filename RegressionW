@@ -1,0 +1,94 @@
+# Libraries
+library(readr)
+library(stats)
+library(forcats)
+library(ggpubr)
+
+
+# Import the data
+
+flower <- read.table("C:/Tesi/Api/Flowerdata_drone2022.csv", sep=",", header = 1)
+bees <- read.table("C:/Tesi/Api/Beesdata_drone2022.csv", sep = ",", header = 1)
+
+
+# Subset according to available plots
+
+selected_plots <- c("BE1", "EL1", "EY2", "EY5", "FR2", "GU4", "RA2", "SG3", "WY1")  # Select the correct fields
+
+flower <- subset(flower, Site %in% selected_levels) # Subset the dataframe based on selected levels
+bees <- subset(bees, Site %in% selected_levels)
+
+
+# Calculate field flower cover
+
+flower_cover <- flower %>%
+  group_by(Site) %>%
+  summarize(Area = sum(Area, na.rm = TRUE))
+
+
+# Calculate the bee abundance
+
+bee_abundance <- bees %>%
+  group_by(Site) %>%
+  summarize(Abundance = sum(Number, na.rm = TRUE))
+
+
+# Calculate bee species richness
+
+bee_richness <- bees %>%
+  na.omit() %>%
+  group_by(Site) %>%
+  summarize(Richness = sum(nlevels(as.factor(Species))) / sqrt(sum(Number)) )
+
+
+# # Calculate Shannon's H diversity
+# 
+# Shannon <- bees %>%
+#   na.omit() %>%
+#   group_by(Site) %>%
+#   group_by(Species) %>%
+#   summarize(Shannon = mean(Number) * log(sum(Number)))
+# 
+# 
+# result_aggregate <- bees %>%
+#   group_by(Site) %>%
+#   aggregate(bees$Number ~ bees$Species, sum)
+
+
+# Import results machine learning classification
+
+classification <- read.table("C:/Tesi/Api/res_fiori2.csv", sep = ",", header = 1) %>%
+  subset(area %in% selected_plots)
+
+selected_plots <- c("Ortho_BE1", "Ortho_EL1", "Ortho_EY2", "Ortho_EY5", "Ortho_FR2", # select the correct fields
+                    "Ortho_GU4", "Ortho_RA2", "Ortho_SG3", "Ortho_WY1")
+
+classification$area <- fct_recode(classification$area, EL1 = "Ortho_EL1", EY2 = "Ortho_EY2", FR2 = "Ortho_FR2", # adjust field names
+                                  GU4 = "Ortho_GU4", SG3 = "Ortho_SG3", WY1 = "Ortho_WY1")
+
+
+# merge into single dataframe
+
+flower_cover_s <- subset(flower_cover, Site %in% classification$area)    # subset according to common plots
+bee_abundance_s <- subset(bee_abundance, Site %in% classification$area)
+bee_richness_s <- subset(bee_richness, Site %in% classification$area)
+
+parameters <- data.frame(Site = flower_cover_s$Site, Cover = flower_cover_s$Area,       # create the dataframe
+                         Abundance = bee_abundance_s$Abundance, Richness = bee_richness_s$Richness,
+                         Grass = classification$erba, Flower = classification$fiori)
+
+
+# Run the linear model
+
+lmFlowers = lm(Flower~Cover, data = parameters) #Create the linear regression
+summary(lmFlowers) #Review the results
+
+
+# Plot the results
+
+ggplot(parameters, aes(x = Flower, y = Cover)) + 
+  geom_point() +
+  stat_smooth(method = "lm", col = "red") +
+  stat_regline_equation()  # Add equation and R-squared label
+
+plot(lmFlowers$residuals, pch = 16, col = "red")
