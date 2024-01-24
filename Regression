@@ -2,6 +2,7 @@
 library(readr)
 library(stats)
 library(forcats)
+library(ggpubr)
 
 
 # Import the data
@@ -87,6 +88,7 @@ summary(lmFlowers) #Review the results
 
 ggplot(parameters, aes(x = Flower, y = Cover)) + 
   geom_point() +
-  stat_smooth(method = "lm", col = "red")
+  stat_smooth(method = "lm", col = "red") +
+  stat_regline_equation()  # Add equation and R-squared label
 
 plot(lmFlowers$residuals, pch = 16, col = "red")
