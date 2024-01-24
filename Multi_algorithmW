@@ -56,6 +56,8 @@ ortho <- list.files(pattern = "Ortho",
   set_names(nm = map(., clean_name)) %>% 
   map(~rast(.))
 
+ortho <- ortho[1:2]
+
 setwd("C:/Tesi/QGIS_tesi")
 
 buffers <- list.files(pattern = "buffer.*shp",
@@ -63,6 +65,8 @@ buffers <- list.files(pattern = "buffer.*shp",
                       recursive = T)%>% 
   set_names(nm = map(., clean_name)) %>% 
   map(~st_read(.))
+
+buffers <- buffers[1:2]
 
 
 # Crop and mask rasters
@@ -79,11 +83,15 @@ fiori<- list.files(pattern = "fiori.*shp", full.names = TRUE, recursive = T)%>%
   map(~st_read(.))%>% 
   map(~.[!st_is_empty(.), ])
 
+fiori <- fiori[1:2]
+
 
 erba<-list.files(pattern = "erba.*shp", full.names = TRUE, recursive = T)%>% 
   set_names(nm = map(., clean_name)) %>% 
   map(~st_read(.))%>% 
   map(~.[!st_is_empty(.), ])
+
+erba <- erba[1:2]
 
 
 
@@ -314,22 +322,22 @@ model_scores(predizioni_NNE, test_data$label)
 train_predictions_RF <- predict(RF, newdata = training_data)
 train_conf_matrix_RF <- confusionMatrix(as.factor(train_predictions_RF), training_data$label, positive = "fiore")
 print(train_conf_matrix_RF)
-model_scores(train_predictions_RF, training_data$label)
+#model_scores(train_predictions_RF, training_data$label)
 
 train_predictions_KNN <- predict(KNN, newdata = training_data)
 train_conf_matrix_KNN <- confusionMatrix(as.factor(train_predictions_KNN), training_data$label, positive = "fiore")
 print(train_conf_matrix_KNN)
-model_scores(train_predictions_KNN, training_data$label)
+#model_scores(train_predictions_KNN, training_data$label)
 
 train_predictions_SVM <- predict(SVM, newdata = training_data)
 train_conf_matrix_SVM <- confusionMatrix(as.factor(train_predictions_SVM), training_data$label, positive = "fiore")
 print(train_conf_matrix_SVM)
-model_scores(train_predictions_SVM, training_data$label)
+#model_scores(train_predictions_SVM, training_data$label)
 
 train_predictions_NNE <- predict(NNE, newdata = training_data)
 train_conf_matrix_NNE <- confusionMatrix(as.factor(train_predictions_NNE), training_data$label, positive = "fiore")
 print(train_conf_matrix_NNE)
-model_scores(train_predictions_NNE, training_data$label)
+#model_scores(train_predictions_NNE, training_data$label)
 
 
 #Cross-Validation Esterna
