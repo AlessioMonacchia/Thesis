@@ -56,7 +56,6 @@ ortho <- list.files(pattern = "Ortho",
   set_names(nm = map(., clean_name)) %>% 
   map(~rast(.))
 
-ortho <- ortho[1:2]
 
 setwd("C:/Tesi/QGIS_tesi")
 
@@ -66,7 +65,6 @@ buffers <- list.files(pattern = "buffer.*shp",
   set_names(nm = map(., clean_name)) %>% 
   map(~st_read(.))
 
-buffers <- buffers[1:2]
 
 
 # Crop and mask rasters
@@ -83,7 +81,6 @@ fiori<- list.files(pattern = "fiori.*shp", full.names = TRUE, recursive = T)%>%
   map(~st_read(.))%>% 
   map(~.[!st_is_empty(.), ])
 
-fiori <- fiori[1:2]
 
 
 erba<-list.files(pattern = "erba.*shp", full.names = TRUE, recursive = T)%>% 
@@ -91,7 +88,6 @@ erba<-list.files(pattern = "erba.*shp", full.names = TRUE, recursive = T)%>%
   map(~st_read(.))%>% 
   map(~.[!st_is_empty(.), ])
 
-erba <- erba[1:2]
 
 
 
