@@ -159,6 +159,22 @@ subset_df <- df_selected %>% filter(df_selected$label == "fiore")
 summary(subset_df)
 
 
+# DA CHATGPT per conditional summary Example dataframe
+your_dataframe <- data.frame(
+  condition_variable = c("A", "B", "A", "B", "A"),
+  variable1 = c(10, 20, 15, 25, 12),
+  variable2 = c(5, 15, 10, 20, 8),
+  variable3 = c(8, 18, 13, 23, 10)
+)
+
+# Conditionally summarize all variables based on the levels of condition_variable
+summary_condition <- by(your_dataframe[, -1], your_dataframe$condition_variable, summary)
+
+# Print the summary for each level of condition_variable
+print(summary_condition)
+
+
+
 # calcualte the interquantile range
 
 IQR(subset_df$banda_1, na.rm = T)
