@@ -152,6 +152,46 @@ df_selected <- dplyr::select(df_tot, banda_1, banda_2, banda_3, label) %>%
 
 # Exploratory data analysis ----
 
+# calculate the main summary statistics for each cover type
+
+subset_df <- df_selected %>% filter(df_selected$label == "fiore")
+
+summary(subset_df)
+
+
+# calcualte the interquantile range
+
+IQR(subset_df$banda_1, na.rm = T)
+
+
+
+# scatterplot: variables relation
+
+pairs(df_fiori_unified[,3:5], pch = 19)
+
+pairs(df_erba_unified[,3:5], pch = 19)
+
+
+# Boxplot
+
+par(mfrow = c(3,1))
+
+ggplot(df_selected, aes(x = label, y = banda_1, fill = label)) +
+  geom_boxplot() +
+  labs(title = "Boxplot band 1", x = "Label", y = "Band_1") +
+  theme_minimal()
+
+ggplot(df_selected, aes(x = label, y = banda_2, fill = label)) +
+  geom_boxplot() +
+  labs(title = "Boxplot band 2", x = "Label", y = "Band_2") +
+  theme_minimal()
+
+ggplot(df_selected, aes(x = label, y = banda_3, fill = label)) +
+  geom_boxplot() +
+  labs(title = "Boxplot band 3", x = "Label", y = "Band_3") +
+  theme_minimal()
+
+
 # Provo il 3D plot
 
 df_3D <- df_selected
