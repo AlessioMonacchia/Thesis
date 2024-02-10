@@ -245,7 +245,7 @@ legend("bottom", legend = c("flower", "grass"),
 # Splitting into train and test----
 
 
-# Dividi il dataframe selezionato in set di addestramento e di test
+# Split into train and test set
 data_split <- initial_split(df_selected, prop = 0.7, strata = "label")
 training_data <- training(data_split)
 test_data <- testing(data_split)
