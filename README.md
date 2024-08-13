@@ -3,7 +3,8 @@
 The present repository contains the codes used for my Master Thesis project.
 
 Here is the abstract of the work:
-Globally, biodiversity faces a decline attributed to anthropogenic caused phenomena such as climate change, habitat fragmentation, and intensified agricultural practices. 
+
+"Globally, biodiversity faces a decline attributed to anthropogenic caused phenomena such as climate change, habitat fragmentation, and intensified agricultural practices. 
 This decline extends to essential crop pollinators, such as bees, whose abundance and diversity are diminishing. This poses a significant risk to numerous plant species relying on their vital pollination services too. 
 Evaluating the status of bee populations is crucial for their conservation. Traditional field data collection methods are often costly and time-consuming, necessitating the development of alternative approaches for more affordable, 
 rapid, and landscape-scale detection. Recently, remote sensing technologies, particularly unmanned aerial vehicles (UAVs), have been explored to address gaps in bee monitoring.
@@ -20,4 +21,4 @@ This suggests the need for additional attempts and larger sample sizes to draw m
 
 Overall, our findings affirm the viability of the proposed approach, integrating UAV technology and machine learning, for evaluating flower cover and bee abundance and diversity. 
 This method has the potential to evolve into a valuable tool for large-scale, standardized, and cost-effective assessments of flower cover and the quality of bee habitats. 
-Additionally, the inclusion of the UV spectrum among the remote sensing tools for monitoring bees and their habitat quality demonstrates promising enhancements in the field of bee conservation.
+Additionally, the inclusion of the UV spectrum among the remote sensing tools for monitoring bees and their habitat quality demonstrates promising enhancements in the field of bee conservation."
